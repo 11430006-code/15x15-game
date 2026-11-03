@@ -1,0 +1,2097 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>15×15 生存遊戲</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+
+    background: #111827;
+    color: white;
+
+    font-family:
+        Arial,
+        "Microsoft JhengHei",
+        sans-serif;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.game-container {
+    text-align: center;
+    padding: 20px;
+}
+
+h1 {
+    margin: 0 0 10px;
+}
+
+
+/* =========================
+   資訊區
+========================= */
+
+.info {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+
+    margin-bottom: 10px;
+
+    font-size: 18px;
+}
+
+.shop-info {
+    margin-bottom: 15px;
+
+    font-size: 16px;
+}
+
+
+/* =========================
+   棋盤
+   15 × 15
+   每格固定 40 × 40
+========================= */
+
+.board-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.board {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(15, 40px);
+
+    grid-template-rows:
+        repeat(15, 40px);
+
+    width: 600px;
+    height: 600px;
+
+    margin: 0 auto;
+
+    border: 3px solid white;
+
+    background: #1f2937;
+
+    /* 保持 1:1 */
+    aspect-ratio: 1 / 1;
+}
+
+
+/* =========================
+   每一格
+========================= */
+
+.cell {
+
+    width: 40px;
+    height: 40px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #374151;
+
+    font-size: 24px;
+
+    user-select: none;
+}
+
+
+/* 玩家 */
+
+.player {
+    background: #2563eb;
+}
+
+
+/* 石頭 */
+
+.rock {
+    background: #4b5563;
+}
+
+
+/* 被布包住的石頭 */
+
+.wrapped-rock {
+    background: #92400e;
+}
+
+
+/* 怪物 */
+
+.monster {
+    background: #7f1d1d;
+}
+
+
+/* =========================
+   商店
+========================= */
+
+.shop {
+
+    margin-top: 15px;
+
+    padding: 15px;
+
+    border: 2px solid #374151;
+
+    border-radius: 10px;
+
+    background: #1f2937;
+}
+
+.shop h2 {
+    margin-top: 0;
+}
+
+.shop-buttons {
+
+    display: flex;
+
+    justify-content: center;
+
+    gap: 8px;
+
+    flex-wrap: wrap;
+}
+
+button {
+
+    font-size: 16px;
+
+    padding: 9px 14px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    cursor: pointer;
+
+    background: #374151;
+
+    color: white;
+}
+
+button:hover {
+    background: #4b5563;
+}
+
+button:disabled {
+
+    background: #1f2937;
+
+    color: #6b7280;
+
+    cursor: not-allowed;
+}
+
+
+/* =========================
+   操作區
+========================= */
+
+.controls {
+    margin-top: 15px;
+}
+
+
+.direction-buttons {
+
+    width: 180px;
+
+    margin: 10px auto;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 5px;
+}
+
+.direction-buttons button {
+
+    width: 55px;
+    height: 45px;
+
+    padding: 0;
+
+    margin: 0;
+}
+
+.empty {
+    visibility: hidden;
+}
+
+
+/* =========================
+   裝備狀態
+========================= */
+
+.inventory {
+
+    margin-top: 10px;
+
+    padding: 10px;
+
+    border-radius: 8px;
+
+    background: #111827;
+
+    font-size: 16px;
+}
+
+
+/* =========================
+   遊戲結束畫面
+========================= */
+
+.game-over {
+
+    position: fixed;
+
+    inset: 0;
+
+    background:
+        rgba(0, 0, 0, 0.8);
+
+    display: none;
+
+    justify-content: center;
+
+    align-items: center;
+
+    z-index: 10;
+}
+
+.game-over-box {
+
+    background: #1f2937;
+
+    padding: 35px;
+
+    border-radius: 15px;
+
+    text-align: center;
+}
+
+.game-over-box h2 {
+
+    font-size: 32px;
+
+    margin-top: 0;
+}
+
+.reason {
+
+    font-size: 18px;
+
+    margin-bottom: 15px;
+}
+
+
+/* =========================
+   說明
+========================= */
+
+.instructions {
+
+    margin-top: 15px;
+
+    font-size: 14px;
+
+    color: #d1d5db;
+
+    line-height: 1.7;
+}
+
+</style>
+</head>
+
+
+<body>
+
+
+<div class="game-container">
+
+    <h1>🎮 15 × 15 生存遊戲</h1>
+
+
+    <!-- 分數 -->
+
+    <div class="info">
+
+        <div>
+            ⭐ 分數：
+            <strong id="score">0</strong>
+        </div>
+
+        <div>
+            👣 步數：
+            <strong id="steps">0</strong>
+        </div>
+
+    </div>
+
+
+    <!-- 商店提示 -->
+
+    <div class="shop-info">
+
+        每 50 分可以購買一次裝備
+
+    </div>
+
+
+    <!-- 棋盤 -->
+
+    <div class="board-wrapper">
+
+        <div
+            class="board"
+            id="board">
+        </div>
+
+    </div>
+
+
+    <!-- 裝備 -->
+
+    <div class="inventory">
+
+        🛡️ 盔甲：
+        <span id="armor">0</span>
+
+        &nbsp;&nbsp;
+
+        ⚔️ 劍：
+        <span id="sword">0</span>
+
+        &nbsp;&nbsp;
+
+        🧣 布：
+        <span id="cloth">0</span>
+
+    </div>
+
+
+    <!-- 商店 -->
+
+    <div class="shop">
+
+        <h2>🛒 商店</h2>
+
+        <div class="shop-buttons">
+
+            <button
+                onclick="buyArmor()"
+                id="armorButton">
+
+                🛡️ 盔甲
+                <br>
+                50 分
+
+            </button>
+
+
+            <button
+                onclick="buySword()"
+                id="swordButton">
+
+                ⚔️ 劍
+                <br>
+                50 分
+
+            </button>
+
+
+            <button
+                onclick="buyCloth()"
+                id="clothButton">
+
+                🧣 布
+                <br>
+                50 分
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- 操作 -->
+
+    <div class="controls">
+
+
+        <div class="direction-buttons">
+
+            <button class="empty"></button>
+
+            <button
+                onclick="movePlayer(0, -1)">
+                ↑
+            </button>
+
+            <button class="empty"></button>
+
+
+            <button
+                onclick="movePlayer(-1, 0)">
+                ←
+            </button>
+
+            <button
+                onclick="movePlayer(0, 1)">
+                ↓
+            </button>
+
+            <button
+                onclick="movePlayer(1, 0)">
+                →
+            </button>
+
+        </div>
+
+
+        <button
+            onclick="attackMonster()">
+
+            ⚔️ 攻擊
+            （Space）
+
+        </button>
+
+
+        <button
+            onclick="togglePause()"
+            id="pauseButton">
+
+            ⏸️ 暫停
+
+        </button>
+
+
+        <button
+            onclick="restartGame()">
+
+            🔄 重新開始
+
+        </button>
+
+    </div>
+
+
+    <!-- 操作說明 -->
+
+    <div class="instructions">
+
+        方向鍵 / WASD：移動<br>
+
+        Space：使用劍攻擊相鄰怪物<br>
+
+        撞到邊界、未包住的石頭或怪物會死亡
+
+    </div>
+
+</div>
+
+
+<!-- =========================
+     遊戲結束
+========================= -->
+
+<div
+    class="game-over"
+    id="gameOver">
+
+    <div class="game-over-box">
+
+        <h2>💀 遊戲結束</h2>
+
+        <div
+            class="reason"
+            id="gameOverReason">
+
+            你死亡了！
+
+        </div>
+
+
+        <div>
+
+            最終分數：
+
+            <strong
+                id="finalScore">
+
+                0
+
+            </strong>
+
+        </div>
+
+
+        <br>
+
+
+        <button
+            onclick="restartGame()">
+
+            🔄 再玩一次
+
+        </button>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+/* ==================================================
+   遊戲基本設定
+================================================== */
+
+const SIZE = 15;
+
+const ROCK_COUNT = 3;
+
+const MONSTER_COUNT = 3;
+
+const EQUIPMENT_COST = 50;
+
+
+/* ==================================================
+   遊戲變數
+================================================== */
+
+let player;
+
+let rocks;
+
+let monsters;
+
+let score;
+
+let steps;
+
+let gameOver;
+
+let paused;
+
+
+/* ==================================================
+   裝備
+================================================== */
+
+/*
+   armor：
+   盔甲數量
+
+   sword：
+   剩餘攻擊次數
+
+   cloth：
+   是否擁有布
+
+   wrappedRock：
+   被布包住的石頭
+*/
+
+let armor;
+
+let sword;
+
+let cloth;
+
+let wrappedRock;
+
+
+/* ==================================================
+   音效系統
+================================================== */
+
+let audioContext = null;
+
+
+/*
+   第一次操作時建立音效系統
+*/
+
+function initAudio() {
+
+    if (!audioContext) {
+
+        audioContext =
+            new (
+                window.AudioContext ||
+                window.webkitAudioContext
+            )();
+
+    }
+
+}
+
+
+/*
+   播放簡單音效
+*/
+
+function playSound(
+    frequency,
+    duration,
+    type = "sine"
+) {
+
+    initAudio();
+
+    const oscillator =
+        audioContext.createOscillator();
+
+    const gain =
+        audioContext.createGain();
+
+
+    oscillator.type = type;
+
+    oscillator.frequency.value =
+        frequency;
+
+
+    gain.gain.setValueAtTime(
+        0.15,
+        audioContext.currentTime
+    );
+
+
+    gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audioContext.currentTime + duration
+    );
+
+
+    oscillator.connect(gain);
+
+    gain.connect(audioContext.destination);
+
+
+    oscillator.start();
+
+    oscillator.stop(
+        audioContext.currentTime + duration
+    );
+
+}
+
+
+/* ==================================================
+   不同事件的音效
+================================================== */
+
+
+/* 遊戲開始 */
+
+function soundStart() {
+
+    playSound(523, 0.12);
+
+    setTimeout(
+        () => playSound(659, 0.12),
+        100
+    );
+
+    setTimeout(
+        () => playSound(784, 0.18),
+        200
+    );
+
+}
+
+
+/* 移動 */
+
+function soundMove() {
+
+    playSound(
+        300,
+        0.05,
+        "square"
+    );
+
+}
+
+
+/* 購買 */
+
+function soundBuy() {
+
+    playSound(500, 0.1);
+
+    setTimeout(
+        () => playSound(700, 0.15),
+        100
+    );
+
+}
+
+
+/* 攻擊 */
+
+function soundAttack() {
+
+    playSound(
+        120,
+        0.1,
+        "sawtooth"
+    );
+
+}
+
+
+/* 擊殺怪物 */
+
+function soundKill() {
+
+    playSound(600, 0.1);
+
+    setTimeout(
+        () => playSound(900, 0.15),
+        100
+    );
+
+}
+
+
+/* 死亡 */
+
+function soundDeath() {
+
+    playSound(
+        180,
+        0.3,
+        "sawtooth"
+    );
+
+    setTimeout(
+        () => playSound(100, 0.5, "sawtooth"),
+        200
+    );
+
+}
+
+
+/* ==================================================
+   建立棋盤
+================================================== */
+
+function createBoard() {
+
+    const board =
+        document.getElementById("board");
+
+
+    board.innerHTML = "";
+
+
+    for (
+        let y = 0;
+        y < SIZE;
+        y++
+    ) {
+
+        for (
+            let x = 0;
+            x < SIZE;
+            x++
+        ) {
+
+            const cell =
+                document.createElement("div");
+
+
+            cell.className = "cell";
+
+
+            cell.id =
+                `cell-${x}-${y}`;
+
+
+            board.appendChild(cell);
+
+        }
+
+    }
+
+}
+
+
+/* ==================================================
+   判斷位置
+================================================== */
+
+function samePosition(a, b) {
+
+    return (
+        a.x === b.x &&
+        a.y === b.y
+    );
+
+}
+
+
+/* ==================================================
+   判斷位置是否被佔用
+================================================== */
+
+function positionOccupied(
+    x,
+    y
+) {
+
+    if (
+        player &&
+        player.x === x &&
+        player.y === y
+    ) {
+
+        return true;
+
+    }
+
+
+    for (
+        const rock of rocks
+    ) {
+
+        if (
+            rock.x === x &&
+            rock.y === y
+        ) {
+
+            return true;
+
+        }
+
+    }
+
+
+    for (
+        const monster of monsters
+    ) {
+
+        if (
+            monster.x === x &&
+            monster.y === y
+        ) {
+
+            return true;
+
+        }
+
+    }
+
+
+    return false;
+
+}
+
+
+/* ==================================================
+   隨機位置
+================================================== */
+
+function randomPosition() {
+
+    let position;
+
+
+    do {
+
+        position = {
+
+            x:
+                Math.floor(
+                    Math.random() * SIZE
+                ),
+
+            y:
+                Math.floor(
+                    Math.random() * SIZE
+                )
+
+        };
+
+    }
+
+    while (
+        positionOccupied(
+            position.x,
+            position.y
+        )
+    );
+
+
+    return position;
+
+}
+
+
+/* ==================================================
+   初始化遊戲
+================================================== */
+
+function initGame() {
+
+
+    player = {
+
+        x: 7,
+
+        y: 7
+
+    };
+
+
+    rocks = [];
+
+    monsters = [];
+
+
+    score = 0;
+
+    steps = 0;
+
+
+    gameOver = false;
+
+    paused = false;
+
+
+    armor = 0;
+
+    sword = 0;
+
+    cloth = false;
+
+    wrappedRock = null;
+
+
+    document
+        .getElementById("gameOver")
+        .style.display = "none";
+
+
+    document
+        .getElementById("pauseButton")
+        .textContent = "⏸️ 暫停";
+
+
+    /*
+       隨機放置 3 顆石頭
+    */
+
+    for (
+        let i = 0;
+        i < ROCK_COUNT;
+        i++
+    ) {
+
+        rocks.push(
+            randomPosition()
+        );
+
+    }
+
+
+    /*
+       隨機放置 3 隻怪物
+    */
+
+    for (
+        let i = 0;
+        i < MONSTER_COUNT;
+        i++
+    ) {
+
+        monsters.push(
+            randomPosition()
+        );
+
+    }
+
+
+    updateScreen();
+
+}
+
+
+/* ==================================================
+   更新畫面
+================================================== */
+
+function updateScreen() {
+
+
+    /*
+       更新分數
+    */
+
+    document
+        .getElementById("score")
+        .textContent = score;
+
+
+    /*
+       更新步數
+    */
+
+    document
+        .getElementById("steps")
+        .textContent = steps;
+
+
+    /*
+       更新裝備
+    */
+
+    document
+        .getElementById("armor")
+        .textContent = armor;
+
+
+    document
+        .getElementById("sword")
+        .textContent = sword;
+
+
+    document
+        .getElementById("cloth")
+        .textContent =
+            cloth ? "1" : "0";
+
+
+    /*
+       清空棋盤
+    */
+
+    for (
+        let y = 0;
+        y < SIZE;
+        y++
+    ) {
+
+        for (
+            let x = 0;
+            x < SIZE;
+            x++
+        ) {
+
+            const cell =
+                document.getElementById(
+                    `cell-${x}-${y}`
+                );
+
+
+            cell.textContent = "";
+
+            cell.className = "cell";
+
+        }
+
+    }
+
+
+    /*
+       顯示石頭
+    */
+
+    for (
+        const rock of rocks
+    ) {
+
+        const cell =
+            document.getElementById(
+                `cell-${rock.x}-${rock.y}`
+            );
+
+
+        /*
+           如果這顆石頭被布包住
+        */
+
+        if (
+            wrappedRock &&
+            samePosition(
+                rock,
+                wrappedRock
+            )
+        ) {
+
+            cell.textContent = "🧣";
+
+            cell.classList.add(
+                "wrapped-rock"
+            );
+
+        }
+
+        else {
+
+            cell.textContent = "🪨";
+
+            cell.classList.add(
+                "rock"
+            );
+
+        }
+
+    }
+
+
+    /*
+       顯示怪物
+    */
+
+    for (
+        const monster of monsters
+    ) {
+
+        const cell =
+            document.getElementById(
+                `cell-${monster.x}-${monster.y}`
+            );
+
+
+        cell.textContent = "👾";
+
+        cell.classList.add(
+            "monster"
+        );
+
+    }
+
+
+    /*
+       顯示玩家
+    */
+
+    const playerCell =
+        document.getElementById(
+            `cell-${player.x}-${player.y}`
+        );
+
+
+    playerCell.textContent = "🙂";
+
+    playerCell.classList.add(
+        "player"
+    );
+
+
+    /*
+       商店按鈕
+    */
+
+    updateShopButtons();
+
+}
+
+
+/* ==================================================
+   商店按鈕狀態
+================================================== */
+
+function updateShopButtons() {
+
+
+    const canBuy =
+        score >= EQUIPMENT_COST;
+
+
+    document
+        .getElementById("armorButton")
+        .disabled = !canBuy;
+
+
+    document
+        .getElementById("swordButton")
+        .disabled = !canBuy;
+
+
+    document
+        .getElementById("clothButton")
+        .disabled = !canBuy;
+
+}
+
+
+/* ==================================================
+   購買盔甲
+================================================== */
+
+function buyArmor() {
+
+
+    if (
+        gameOver ||
+        paused ||
+        score < EQUIPMENT_COST
+    ) {
+
+        return;
+
+    }
+
+
+    score -= EQUIPMENT_COST;
+
+    armor++;
+
+
+    soundBuy();
+
+
+    updateScreen();
+
+}
+
+
+/* ==================================================
+   購買劍
+================================================== */
+
+function buySword() {
+
+
+    if (
+        gameOver ||
+        paused ||
+        score < EQUIPMENT_COST
+    ) {
+
+        return;
+
+    }
+
+
+    score -= EQUIPMENT_COST;
+
+
+    /*
+       每把劍有 3 次攻擊
+    */
+
+    sword += 3;
+
+
+    soundBuy();
+
+
+    updateScreen();
+
+}
+
+
+/* ==================================================
+   購買布
+================================================== */
+
+function buyCloth() {
+
+
+    if (
+        gameOver ||
+        paused ||
+        score < EQUIPMENT_COST
+    ) {
+
+        return;
+
+    }
+
+
+    score -= EQUIPMENT_COST;
+
+
+    cloth = true;
+
+
+    /*
+       購買新裝備時，
+       布的效果重新準備
+    */
+
+    wrappedRock = null;
+
+
+    soundBuy();
+
+
+    updateScreen();
+
+}
+
+
+/* ==================================================
+   玩家移動
+================================================== */
+
+function movePlayer(
+    dx,
+    dy
+) {
+
+
+    if (
+        gameOver ||
+        paused
+    ) {
+
+        return;
+
+    }
+
+
+    initAudio();
+
+
+    const newX =
+        player.x + dx;
+
+
+    const newY =
+        player.y + dy;
+
+
+    /*
+       =========================
+       碰到 / 跑出邊界
+       =========================
+    */
+
+    if (
+        newX < 0 ||
+        newX >= SIZE ||
+        newY < 0 ||
+        newY >= SIZE
+    ) {
+
+        endGame(
+            "你跑出了邊界！"
+        );
+
+        return;
+
+    }
+
+
+    /*
+       =========================
+       石頭
+       =========================
+    */
+
+    for (
+        const rock of rocks
+    ) {
+
+        if (
+            rock.x === newX &&
+            rock.y === newY
+        ) {
+
+
+            /*
+               如果這顆石頭
+               已經被布包住
+            */
+
+            if (
+                wrappedRock &&
+                samePosition(
+                    rock,
+                    wrappedRock
+                )
+            ) {
+
+                /*
+                   可以安全通過
+                */
+
+                break;
+
+            }
+
+
+            /*
+               有布可以包石頭
+            */
+
+            if (cloth) {
+
+
+                /*
+                   包住這顆石頭
+                */
+
+                wrappedRock = {
+
+                    x: rock.x,
+
+                    y: rock.y
+
+                };
+
+
+                /*
+                   布使用掉
+                */
+
+                cloth = false;
+
+
+                soundMove();
+
+
+                player.x = newX;
+
+                player.y = newY;
+
+
+                steps++;
+
+                score++;
+
+
+                updateScreen();
+
+
+                return;
+
+            }
+
+
+            /*
+               沒有布
+               撞到石頭死亡
+            */
+
+            endGame(
+                "你撞到了石頭！"
+            );
+
+            return;
+
+        }
+
+    }
+
+
+    /*
+       =========================
+       怪物
+       =========================
+    */
+
+    for (
+        const monster of monsters
+    ) {
+
+        if (
+            monster.x === newX &&
+            monster.y === newY
+        ) {
+
+
+            /*
+               有盔甲
+            */
+
+            if (armor > 0) {
+
+                armor--;
+
+                soundMove();
+
+
+                player.x = newX;
+
+                player.y = newY;
+
+
+                steps++;
+
+                score++;
+
+
+                updateScreen();
+
+
+                return;
+
+            }
+
+
+            /*
+               沒有盔甲
+            */
+
+            endGame(
+                "你被怪物撞到了！"
+            );
+
+            return;
+
+        }
+
+    }
+
+
+    /*
+       =========================
+       正常移動
+       =========================
+    */
+
+    player.x = newX;
+
+    player.y = newY;
+
+
+    steps++;
+
+    score++;
+
+
+    soundMove();
+
+
+    /*
+       怪物移動
+    */
+
+    moveMonsters();
+
+
+    /*
+       檢查怪物是否追上玩家
+    */
+
+    for (
+        const monster of monsters
+    ) {
+
+        if (
+            samePosition(
+                monster,
+                player
+            )
+        ) {
+
+
+            /*
+               盔甲擋住
+            */
+
+            if (armor > 0) {
+
+                armor--;
+
+            }
+
+            else {
+
+                endGame(
+                    "怪物追上你了！"
+                );
+
+                return;
+
+            }
+
+        }
+
+    }
+
+
+    updateScreen();
+
+}
+
+
+/* ==================================================
+   怪物隨機移動
+================================================== */
+
+function moveMonsters() {
+
+
+    const directions = [
+
+        {
+            x: 0,
+            y: -1
+        },
+
+        {
+            x: 0,
+            y: 1
+        },
+
+        {
+            x: -1,
+            y: 0
+        },
+
+        {
+            x: 1,
+            y: 0
+        }
+
+    ];
+
+
+    for (
+        const monster of monsters
+    ) {
+
+
+        /*
+           隨機選方向
+        */
+
+        const direction =
+            directions[
+                Math.floor(
+                    Math.random()
+                    *
+                    directions.length
+                )
+            ];
+
+
+        const newX =
+            monster.x +
+            direction.x;
+
+
+        const newY =
+            monster.y +
+            direction.y;
+
+
+        /*
+           怪物不能走出棋盤
+        */
+
+        if (
+            newX < 0 ||
+            newX >= SIZE ||
+            newY < 0 ||
+            newY >= SIZE
+        ) {
+
+            continue;
+
+        }
+
+
+        /*
+           怪物不能走到石頭
+        */
+
+        let hitRock = false;
+
+
+        for (
+            const rock of rocks
+        ) {
+
+            if (
+                rock.x === newX &&
+                rock.y === newY
+            ) {
+
+                hitRock = true;
+
+                break;
+
+            }
+
+        }
+
+
+        if (hitRock) {
+
+            continue;
+
+        }
+
+
+        /*
+           怪物移動
+        */
+
+        monster.x = newX;
+
+        monster.y = newY;
+
+    }
+
+}
+
+
+/* ==================================================
+   攻擊怪物
+================================================== */
+
+function attackMonster() {
+
+
+    if (
+        gameOver ||
+        paused
+    ) {
+
+        return;
+
+    }
+
+
+    /*
+       沒有劍
+    */
+
+    if (sword <= 0) {
+
+        return;
+
+    }
+
+
+    soundAttack();
+
+
+    /*
+       尋找相鄰怪物
+    */
+
+    let targetIndex = -1;
+
+
+    for (
+        let i = 0;
+        i < monsters.length;
+        i++
+    ) {
+
+
+        const monster =
+            monsters[i];
+
+
+        const distance =
+            Math.abs(
+                monster.x -
+                player.x
+            )
+            +
+            Math.abs(
+                monster.y -
+                player.y
+            );
+
+
+        /*
+           曼哈頓距離 1
+           = 上下左右相鄰
+        */
+
+        if (distance === 1) {
+
+            targetIndex = i;
+
+            break;
+
+        }
+
+    }
+
+
+    /*
+       使用一次劍
+    */
+
+    sword--;
+
+
+    /*
+       有打到怪物
+    */
+
+    if (targetIndex !== -1) {
+
+
+        /*
+           移除怪物
+        */
+
+        monsters.splice(
+            targetIndex,
+            1
+        );
+
+
+        soundKill();
+
+    }
+
+
+    /*
+       如果劍 3 次用完
+       sword 會變成 0
+    */
+
+    updateScreen();
+
+}
+
+
+/* ==================================================
+   遊戲結束
+================================================== */
+
+function endGame(
+    reason
+) {
+
+
+    gameOver = true;
+
+
+    soundDeath();
+
+
+    document
+        .getElementById(
+            "gameOverReason"
+        )
+        .textContent = reason;
+
+
+    document
+        .getElementById(
+            "finalScore"
+        )
+        .textContent = score;
+
+
+    document
+        .getElementById(
+            "gameOver"
+        )
+        .style.display = "flex";
+
+}
+
+
+/* ==================================================
+   暫停
+================================================== */
+
+function togglePause() {
+
+
+    if (gameOver) {
+
+        return;
+
+    }
+
+
+    paused = !paused;
+
+
+    const button =
+        document.getElementById(
+            "pauseButton"
+        );
+
+
+    if (paused) {
+
+        button.textContent =
+            "▶️ 繼續";
+
+    }
+
+    else {
+
+        button.textContent =
+            "⏸️ 暫停";
+
+    }
+
+}
+
+
+/* ==================================================
+   重新開始
+================================================== */
+
+function restartGame() {
+
+
+    initAudio();
+
+
+    initGame();
+
+
+    soundStart();
+
+}
+
+
+/* ==================================================
+   鍵盤控制
+================================================== */
+
+document.addEventListener(
+    "keydown",
+    function(event) {
+
+
+        if (
+            gameOver ||
+            paused
+        ) {
+
+            return;
+
+        }
+
+
+        /*
+           上
+        */
+
+        if (
+            event.key === "ArrowUp" ||
+            event.key === "w" ||
+            event.key === "W"
+        ) {
+
+            movePlayer(0, -1);
+
+            event.preventDefault();
+
+        }
+
+
+        /*
+           下
+        */
+
+        else if (
+            event.key === "ArrowDown" ||
+            event.key === "s" ||
+            event.key === "S"
+        ) {
+
+            movePlayer(0, 1);
+
+            event.preventDefault();
+
+        }
+
+
+        /*
+           左
+        */
+
+        else if (
+            event.key === "ArrowLeft" ||
+            event.key === "a" ||
+            event.key === "A"
+        ) {
+
+            movePlayer(-1, 0);
+
+            event.preventDefault();
+
+        }
+
+
+        /*
+           右
+        */
+
+        else if (
+            event.key === "ArrowRight" ||
+            event.key === "d" ||
+            event.key === "D"
+        ) {
+
+            movePlayer(1, 0);
+
+            event.preventDefault();
+
+        }
+
+
+        /*
+           劍
+        */
+
+        else if (
+            event.code === "Space"
+        ) {
+
+            attackMonster();
+
+            event.preventDefault();
+
+        }
+
+    }
+);
+
+
+/* ==================================================
+   開始
+================================================== */
+
+createBoard();
+
+initGame();
+
+</script>
+
+</body>
+</html>
